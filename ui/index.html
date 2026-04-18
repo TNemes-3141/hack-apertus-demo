@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hack Apertus · Translation</title>
+  <style>
+    /* ---- Reset & base ---- */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --red:        #e63b3b;
+      --red-dark:   #c72f2f;
+      --red-light:  #fdf0f0;
+      --bg:         #f4f5f7;
+      --surface:    #ffffff;
+      --border:     #dde1e9;
+      --text:        #1a1d23;
+      --muted:       #6b7280;
+      --green:       #22c55e;
+      --radius:      12px;
+      --shadow:      0 2px 12px rgba(0,0,0,.08);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ---- Header ---- */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .logo-icon {
+      width: 32px; height: 32px;
+      background: var(--red);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; color: white; font-weight: 700;
+    }
+
+    .logo-text { font-size: 1.1rem; font-weight: 700; letter-spacing: -.3px; }
+    .logo-sub  { font-size: .75rem; color: var(--muted); margin-left: 4px; font-weight: 400; }
+
+    .header-right {
+      display: flex; align-items: center; gap: 12px;
+      font-size: .82rem; color: var(--muted);
+    }
+
+    .status-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #ccc; display: inline-block;
+    }
+    .status-dot.online  { background: var(--green); }
+    .status-dot.offline { background: var(--red); }
+
+    /* ---- Main layout ---- */
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem;
+      gap: 1rem;
+    }
+
+    .subtitle {
+      font-size: .85rem; color: var(--muted); text-align: center;
+      max-width: 560px;
+    }
+
+    /* ---- Translator card ---- */
+    .translator {
+      width: 100%; max-width: 960px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    /* ---- Language bar ---- */
+    .lang-bar {
+      display: flex;
+      align-items: stretch;
+      border-bottom: 1px solid var(--border);
+      min-height: 48px;
+    }
+
+    .lang-picker {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+    }
+
+    .lang-label { font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+
+    .lang-select {
+      border: none; outline: none; background: transparent;
+      font-size: .95rem; font-weight: 600; color: var(--text);
+      cursor: pointer; padding: 2px 4px; border-radius: 6px;
+      transition: background .15s;
+      -webkit-appearance: none;
+    }
+    .lang-select:hover { background: var(--bg); }
+
+    .swap-btn {
+      width: 48px; min-width: 48px;
+      border: none; background: transparent;
+      border-left:  1px solid var(--border);
+      border-right: 1px solid var(--border);
+      cursor: pointer; color: var(--muted);
+      font-size: 1.1rem; transition: background .15s, color .15s;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .swap-btn:hover { background: var(--bg); color: var(--text); }
+
+    /* ---- Text panes ---- */
+    .panes {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+
+    @media (max-width: 640px) {
+      .panes { grid-template-columns: 1fr; }
+    }
+
+    .pane {
+      padding: 20px;
+      position: relative;
+      min-height: 240px;
+    }
+    .pane + .pane { border-left: 1px solid var(--border); }
+    @media (max-width: 640px) {
+      .pane + .pane { border-left: none; border-top: 1px solid var(--border); }
+    }
+
+    .pane-label {
+      font-size: .68rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: .08em; color: var(--muted); margin-bottom: 10px;
+    }
+
+    textarea {
+      width: 100%; height: 180px;
+      border: none; outline: none; resize: none;
+      font-size: 1rem; line-height: 1.6; color: var(--text);
+      background: transparent; font-family: inherit;
+    }
+    textarea::placeholder { color: #b0b8c8; }
+
+    .output-text {
+      font-size: 1rem; line-height: 1.6; min-height: 180px;
+      color: var(--text); white-space: pre-wrap; word-break: break-word;
+    }
+
+    .output-placeholder { color: #b0b8c8; }
+
+    /* ---- Pane footer ---- */
+    .pane-footer {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 20px;
+      border-top: 1px solid var(--border);
+    }
+
+    .char-count { font-size: .78rem; color: var(--muted); }
+    .char-count.warn { color: #f59e0b; }
+    .char-count.over { color: var(--red); }
+
+    /* ---- Translate button ---- */
+    .translate-btn {
+      background: var(--red); color: white;
+      border: none; border-radius: 8px;
+      padding: 9px 22px; font-size: .9rem; font-weight: 600;
+      cursor: pointer; transition: background .15s, transform .1s;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .translate-btn:hover:not(:disabled)  { background: var(--red-dark); }
+    .translate-btn:active:not(:disabled) { transform: scale(.98); }
+    .translate-btn:disabled { opacity: .55; cursor: not-allowed; }
+
+    .spinner {
+      width: 14px; height: 14px;
+      border: 2px solid rgba(255,255,255,.4);
+      border-top-color: white; border-radius: 50%;
+      animation: spin .7s linear infinite;
+      display: none;
+    }
+    .translating .spinner { display: block; }
+    .translating .btn-label { opacity: .7; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Output controls */
+    .output-controls {
+      display: flex; gap: 6px;
+    }
+
+    .icon-btn {
+      border: none; background: transparent; cursor: pointer;
+      color: var(--muted); padding: 4px; border-radius: 6px;
+      font-size: 1rem; transition: background .15s, color .15s;
+      display: flex; align-items: center;
+    }
+    .icon-btn:hover { background: var(--bg); color: var(--text); }
+    .icon-btn.copied { color: var(--green); }
+
+    /* ---- Metrics panel ---- */
+    .metrics-bar {
+      display: flex; align-items: center; gap: 16px;
+      padding: 10px 20px;
+      border-top: 1px solid var(--border);
+      background: #fafbfc;
+      font-size: .78rem; color: var(--muted);
+      flex-wrap: wrap;
+    }
+    .metric { display: flex; align-items: center; gap: 5px; }
+    .metric-val { font-weight: 600; color: var(--text); }
+    .metric-sep { color: var(--border); }
+
+    /* ---- Error banner ---- */
+    .error-banner {
+      margin: 0 20px 16px;
+      padding: 10px 14px;
+      background: var(--red-light);
+      border: 1px solid #f5c6c6;
+      border-radius: 8px;
+      font-size: .85rem; color: #8b1a1a;
+      display: none;
+    }
+    .error-banner.show { display: block; }
+
+    /* ---- Model info card ---- */
+    .info-card {
+      width: 100%; max-width: 960px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      display: flex; flex-wrap: wrap; gap: 16px;
+      align-items: center; font-size: .82rem; color: var(--muted);
+    }
+    .info-item { display: flex; align-items: center; gap: 6px; }
+    .info-item strong { color: var(--text); }
+
+    /* ---- Footer ---- */
+    footer {
+      text-align: center; padding: 1.5rem;
+      font-size: .75rem; color: var(--muted);
+      border-top: 1px solid var(--border);
+    }
+    footer a { color: var(--red); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+<!-- ===== Header ===== -->
+<header>
+  <a class="logo" href="/">
+    <div class="logo-icon">A</div>
+    <span class="logo-text">Apertus Translate</span>
+    <span class="logo-sub">Public Administration</span>
+  </a>
+  <div class="header-right">
+    <span class="status-dot" id="statusDot"></span>
+    <span id="statusText">Connecting…</span>
+  </div>
+</header>
+
+<!-- ===== Main ===== -->
+<main>
+  <p class="subtitle">
+    Open-source, on-premise translation for Swiss cantonal administrations.
+    Powered by <strong>Apertus 8B</strong> — EU AI Act compliant, fully self-hosted.
+  </p>
+
+  <!-- Error banner -->
+  <div id="errorBanner" class="error-banner"></div>
+
+  <!-- Translator card -->
+  <div class="translator">
+
+    <!-- Language bar -->
+    <div class="lang-bar">
+      <div class="lang-picker">
+        <span class="lang-label">From</span>
+        <select id="srcLang" class="lang-select"></select>
+      </div>
+
+      <button class="swap-btn" id="swapBtn" title="Swap languages">⇄</button>
+
+      <div class="lang-picker">
+        <span class="lang-label">To</span>
+        <select id="tgtLang" class="lang-select"></select>
+      </div>
+    </div>
+
+    <!-- Text panes -->
+    <div class="panes">
+      <!-- Source -->
+      <div class="pane">
+        <div class="pane-label">Source text</div>
+        <textarea
+          id="sourceText"
+          placeholder="Enter text to translate…"
+          maxlength="5000"
+          spellcheck="true"
+        ></textarea>
+      </div>
+
+      <!-- Target -->
+      <div class="pane">
+        <div class="pane-label">Translation</div>
+        <div id="outputText" class="output-text output-placeholder">
+          Translation will appear here…
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer row -->
+    <div class="pane-footer">
+      <span class="char-count" id="charCount">0 / 5000</span>
+      <button class="translate-btn" id="translateBtn" disabled>
+        <div class="spinner" id="spinner"></div>
+        <span class="btn-label" id="btnLabel">Translate</span>
+      </button>
+      <div class="output-controls">
+        <button class="icon-btn" id="copyBtn" title="Copy translation">
+          📋
+        </button>
+        <button class="icon-btn" id="clearBtn" title="Clear">
+          ✕
+        </button>
+      </div>
+    </div>
+
+    <!-- Metrics bar (shown after first translation) -->
+    <div class="metrics-bar" id="metricsBar" style="display:none;">
+      <div class="metric">⏱ <span class="metric-val" id="mElapsed">—</span> ms</div>
+      <span class="metric-sep">·</span>
+      <div class="metric">Model: <span class="metric-val" id="mModel">—</span></div>
+      <span class="metric-sep">·</span>
+      <div class="metric">Adapter: <span class="metric-val" id="mAdapter">none</span></div>
+      <span class="metric-sep">·</span>
+      <div class="metric" id="mDemoWrap">Mode: <span class="metric-val" id="mDemo">—</span></div>
+    </div>
+  </div>
+
+  <!-- Model info card -->
+  <div class="info-card" id="infoCard">
+    <div class="info-item">🔒 <strong>On-premise</strong> — no data leaves your server</div>
+    <div class="info-item">🌍 <strong>20 language tracks</strong> — all Swiss official languages + more</div>
+    <div class="info-item">⚖️ <strong>EU AI Act</strong> compliant (Apache 2.0)</div>
+    <div class="info-item" id="infoAdapter">🔌 LoRA adapter: <strong id="adapterName">loading…</strong></div>
+  </div>
+</main>
+
+<footer>
+  Hack Apertus · <a href="https://hackapertus.ch" target="_blank">hackapertus.ch</a>
+  &nbsp;·&nbsp;
+  Model: <a href="https://huggingface.co/swiss-ai/Apertus-8B-Instruct-2509" target="_blank">Apertus 8B</a> by Swiss AI Initiative
+  &nbsp;·&nbsp;
+  <a href="https://github.com/swiss-ai/apertus-finetuning-recipes" target="_blank">Fine-tuning recipes</a>
+</footer>
+
+<script>
+// ---------------------------------------------------------------------------
+// Config — in Docker, the API is served at /api or same origin
+// ---------------------------------------------------------------------------
+const API_BASE = window.location.hostname === "localhost"
+  ? "http://localhost:8080"
+  : "";   // Same origin in Docker (nginx proxies /api → FastAPI)
+
+const LANGUAGES = {
+  "it": "Italian", "de": "German", "fr": "French",
+  "en": "English", "pt": "Portuguese", "es": "Spanish",
+  "nl": "Dutch",   "pl": "Polish",    "tr": "Turkish",
+  "ar": "Arabic",  "ko": "Korean",    "ja": "Japanese",
+  "uk": "Ukrainian","sv": "Swedish",  "hu": "Hungarian",
+  "cs": "Czech",   "el": "Greek",     "fa": "Persian",
+  "sw": "Swahili", "id": "Indonesian",
+};
+
+// Default: Italian → German (most common in Ticino context)
+let srcLang = "it";
+let tgtLang = "de";
+
+// ---------------------------------------------------------------------------
+// DOM refs
+// ---------------------------------------------------------------------------
+const srcSelect    = document.getElementById("srcLang");
+const tgtSelect    = document.getElementById("tgtLang");
+const swapBtn      = document.getElementById("swapBtn");
+const sourceText   = document.getElementById("sourceText");
+const outputText   = document.getElementById("outputText");
+const translateBtn = document.getElementById("translateBtn");
+const btnLabel     = document.getElementById("btnLabel");
+const spinner      = document.getElementById("spinner");
+const charCount    = document.getElementById("charCount");
+const errorBanner  = document.getElementById("errorBanner");
+const copyBtn      = document.getElementById("copyBtn");
+const clearBtn     = document.getElementById("clearBtn");
+const metricsBar   = document.getElementById("metricsBar");
+const statusDot    = document.getElementById("statusDot");
+const statusText   = document.getElementById("statusText");
+
+// ---------------------------------------------------------------------------
+// Populate selects
+// ---------------------------------------------------------------------------
+function buildSelects() {
+  Object.entries(LANGUAGES).forEach(([code, name]) => {
+    const addOption = (sel, selected) => {
+      const opt = document.createElement("option");
+      opt.value = code;
+      opt.textContent = `${name} (${code})`;
+      opt.selected = selected;
+      sel.appendChild(opt);
+    };
+    addOption(srcSelect, code === srcLang);
+    addOption(tgtSelect, code === tgtLang);
+  });
+}
+buildSelects();
+
+srcSelect.addEventListener("change", () => { srcLang = srcSelect.value; });
+tgtSelect.addEventListener("change", () => { tgtLang = tgtSelect.value; });
+
+swapBtn.addEventListener("click", () => {
+  const tmp = srcLang; srcLang = tgtLang; tgtLang = tmp;
+  srcSelect.value = srcLang;
+  tgtSelect.value = tgtLang;
+  // Swap the text as well if we already have a translation
+  const existing = outputText.dataset.translation;
+  if (existing && !outputText.classList.contains("output-placeholder")) {
+    sourceText.value = existing;
+    updateCharCount();
+    setOutput("", false);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Character counter
+// ---------------------------------------------------------------------------
+const MAX_CHARS = 5000;
+
+function updateCharCount() {
+  const n = sourceText.value.length;
+  charCount.textContent = `${n} / ${MAX_CHARS}`;
+  charCount.classList.toggle("warn", n > MAX_CHARS * 0.85 && n <= MAX_CHARS);
+  charCount.classList.toggle("over", n > MAX_CHARS);
+  translateBtn.disabled = n === 0 || n > MAX_CHARS;
+}
+sourceText.addEventListener("input", updateCharCount);
+updateCharCount();
+
+// ---------------------------------------------------------------------------
+// Output helpers
+// ---------------------------------------------------------------------------
+function setOutput(text, isTranslation) {
+  if (isTranslation && text) {
+    outputText.textContent = text;
+    outputText.classList.remove("output-placeholder");
+    outputText.dataset.translation = text;
+  } else {
+    outputText.textContent = "Translation will appear here…";
+    outputText.classList.add("output-placeholder");
+    outputText.dataset.translation = "";
+  }
+}
+
+function showError(msg) {
+  errorBanner.textContent = msg;
+  errorBanner.classList.add("show");
+  setTimeout(() => errorBanner.classList.remove("show"), 6000);
+}
+
+function setLoading(loading) {
+  translateBtn.classList.toggle("translating", loading);
+  translateBtn.disabled = loading;
+  spinner.style.display = loading ? "block" : "none";
+  btnLabel.textContent = loading ? "Translating…" : "Translate";
+}
+
+// ---------------------------------------------------------------------------
+// Translate
+// ---------------------------------------------------------------------------
+async function translate() {
+  const text = sourceText.value.trim();
+  if (!text) return;
+  if (srcLang === tgtLang) {
+    showError("Source and target languages must be different.");
+    return;
+  }
+
+  setLoading(true);
+  errorBanner.classList.remove("show");
+
+  try {
+    const res = await fetch(`${API_BASE}/translate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, src_lang: srcLang, tgt_lang: tgtLang }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || "Translation failed");
+    }
+
+    const data = await res.json();
+    setOutput(data.translation, true);
+
+    // Update metrics bar
+    document.getElementById("mElapsed").textContent = data.elapsed_ms;
+    document.getElementById("mModel").textContent   = data.model.replace("swiss-ai/", "");
+    document.getElementById("mAdapter").textContent = data.adapter
+      ? data.adapter.split("/").pop()
+      : "none";
+    document.getElementById("mDemo").textContent    = data.demo_mode ? "demo" : "live";
+    metricsBar.style.display = "flex";
+
+  } catch (e) {
+    showError(`⚠️ ${e.message}`);
+  } finally {
+    setLoading(false);
+  }
+}
+
+translateBtn.addEventListener("click", translate);
+sourceText.addEventListener("keydown", (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key === "Enter") translate();
+});
+
+// ---------------------------------------------------------------------------
+// Copy & Clear
+// ---------------------------------------------------------------------------
+copyBtn.addEventListener("click", async () => {
+  const text = outputText.dataset.translation;
+  if (!text) return;
+  await navigator.clipboard.writeText(text).catch(() => {});
+  copyBtn.textContent = "✅";
+  copyBtn.classList.add("copied");
+  setTimeout(() => { copyBtn.textContent = "📋"; copyBtn.classList.remove("copied"); }, 1500);
+});
+
+clearBtn.addEventListener("click", () => {
+  sourceText.value = "";
+  setOutput("", false);
+  metricsBar.style.display = "none";
+  updateCharCount();
+  sourceText.focus();
+});
+
+// ---------------------------------------------------------------------------
+// Health check & model info
+// ---------------------------------------------------------------------------
+async function checkHealth() {
+  try {
+    const res = await fetch(`${API_BASE}/health`);
+    if (!res.ok) throw new Error("not ok");
+    const data = await res.json();
+    statusDot.className = "status-dot online";
+    statusText.textContent = data.demo_mode ? "Demo mode" : "Online";
+  } catch {
+    statusDot.className = "status-dot offline";
+    statusText.textContent = "API offline";
+  }
+}
+
+async function loadInfo() {
+  try {
+    const res = await fetch(`${API_BASE}/info`);
+    if (!res.ok) return;
+    const data = await res.json();
+    document.getElementById("adapterName").textContent = data.adapter
+      ? data.adapter.split("/").pop()
+      : "none (baseline)";
+  } catch {
+    document.getElementById("adapterName").textContent = "unavailable";
+  }
+}
+
+// Kick off health check on load
+checkHealth();
+loadInfo();
+setInterval(checkHealth, 30000);
+</script>
+</body>
+</html>

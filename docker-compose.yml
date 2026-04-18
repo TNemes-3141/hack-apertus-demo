@@ -1,0 +1,177 @@
+# ============================================================
+# docker-compose.yml — Hack Apertus Translation Stack
+# ============================================================
+#
+# THREE DEPLOYMENT MODES — pick one by choosing a profile:
+#
+#   1. Demo (no GPU needed, instant start):
+#      docker-compose --profile demo up
+#
+#   2. Real model via Transformers (requires ~20GB VRAM or CPU):
+#      docker-compose --profile transformers up
+#
+#   3. Production via vLLM (recommended for real load, A100/H100):
+#      docker-compose --profile vllm up
+#
+# Copy .env.example → .env and fill in HF_TOKEN before starting.
+# ============================================================
+
+version: "3.9"
+
+# ---------------------------------------------------------------------------
+# Shared defaults
+# ---------------------------------------------------------------------------
+x-api-base: &api-base
+  build:
+    context: .
+    dockerfile: Dockerfile
+    target: api
+  volumes:
+    - ./output/apertus_lora:/app/adapter:ro   # Mount LoRA adapter if available
+    - hf_cache:/root/.cache/huggingface       # Shared model cache
+  environment:
+    ADAPTER_PATH: "/app/adapter"
+  restart: unless-stopped
+
+
+# ---------------------------------------------------------------------------
+# Services
+# ---------------------------------------------------------------------------
+services:
+
+  # ──────────────────────────────────────────────
+  # 1. DEMO MODE — no model, instant responses
+  # ──────────────────────────────────────────────
+  api-demo:
+    <<: *api-base
+    profiles: ["demo"]
+    container_name: apertus-api-demo
+    ports:
+      - "8080:8080"
+    environment:
+      DEMO_MODE: "true"
+      MODEL_PATH: "swiss-ai/Apertus-8B-Instruct-2509"
+      ADAPTER_PATH: ""
+
+  nginx-demo:
+    profiles: ["demo"]
+    image: nginx:alpine
+    container_name: apertus-nginx-demo
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./ui:/usr/share/nginx/html:ro
+    depends_on:
+      - api-demo
+
+
+  # ──────────────────────────────────────────────
+  # 2. TRANSFORMERS MODE — real model, 1 GPU
+  # ──────────────────────────────────────────────
+  api-transformers:
+    <<: *api-base
+    profiles: ["transformers"]
+    container_name: apertus-api
+    ports:
+      - "8080:8080"
+    environment:
+      DEMO_MODE: "false"
+      MODEL_PATH: "swiss-ai/Apertus-8B-Instruct-2509"
+      MODEL_DEVICE: "auto"
+      USE_4BIT: "false"           # Set "true" for smaller GPUs (~10GB)
+      HF_TOKEN: "${HF_TOKEN}"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  nginx-transformers:
+    profiles: ["transformers"]
+    image: nginx:alpine
+    container_name: apertus-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./ui:/usr/share/nginx/html:ro
+    depends_on:
+      - api-transformers
+
+
+  # ──────────────────────────────────────────────
+  # 3. vLLM PRODUCTION MODE
+  # Recommended for teams: much higher throughput.
+  # Based on official Apertus vLLM guide:
+  # https://apertvs.ai/docs/guides/vllm/
+  # ──────────────────────────────────────────────
+  vllm:
+    profiles: ["vllm"]
+    image: ghcr.io/vllm-project/vllm-openai:latest
+    container_name: apertus-vllm
+    environment:
+      HF_TOKEN: "${HF_TOKEN}"
+    command: >
+      --model swiss-ai/Apertus-8B-Instruct-2509
+      --max-model-len 4096
+      --dtype bfloat16
+      --enable-lora
+      --lora-modules translation=/app/adapter
+    volumes:
+      - hf_cache:/root/.cache/huggingface
+      - ./output/apertus_lora:/app/adapter:ro
+    ports:
+      - "8000:8000"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+  # vLLM-mode API — thin proxy that calls vLLM via OpenAI-compatible API
+  api-vllm:
+    <<: *api-base
+    profiles: ["vllm"]
+    container_name: apertus-api-vllm
+    ports:
+      - "8080:8080"
+    environment:
+      DEMO_MODE: "false"
+      # Point to vLLM's OpenAI-compatible endpoint instead of loading weights
+      VLLM_BASE_URL: "http://vllm:8000/v1"
+      MODEL_PATH: "swiss-ai/Apertus-8B-Instruct-2509"
+      ADAPTER_PATH: ""
+    depends_on:
+      vllm:
+        condition: service_healthy
+
+  nginx-vllm:
+    profiles: ["vllm"]
+    image: nginx:alpine
+    container_name: apertus-nginx-vllm
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./ui:/usr/share/nginx/html:ro
+    depends_on:
+      - api-vllm
+
+
+# ---------------------------------------------------------------------------
+# Volumes
+# ---------------------------------------------------------------------------
+volumes:
+  hf_cache:
+    name: apertus-hf-cache

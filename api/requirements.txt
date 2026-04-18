@@ -1,0 +1,24 @@
+# Core API
+fastapi>=0.111.0
+uvicorn[standard]>=0.29.0
+pydantic>=2.0.0
+
+# ML stack — versions aligned with Apertus requirements
+# See: https://huggingface.co/swiss-ai/Apertus-8B-2509 (requires transformers >= 4.56.0)
+transformers>=4.56.0
+torch>=2.3.0
+accelerate>=0.30.0
+
+# LoRA / adapter loading
+peft>=0.11.0
+
+# 4-bit quantization (optional, GPU only)
+# bitsandbytes>=0.43.0
+
+# Evaluation
+sacrebleu>=2.4.0
+
+# Training
+trl>=0.9.0
+datasets>=2.19.0
+pyyaml>=6.0

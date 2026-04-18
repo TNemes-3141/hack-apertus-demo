@@ -1,0 +1,49 @@
+# ============================================================
+# Apertus 8B LoRA Fine-Tuning Config — Translation Track
+# Based on: https://github.com/swiss-ai/apertus-finetuning-recipes
+# Docs:     https://apertvs.ai/docs/tech/fine-tuning/
+# ============================================================
+
+# --- Model ---
+model_path: "swiss-ai/Apertus-8B-Instruct-2509"   # Switch to base if needed
+output_dir: "output/apertus_lora"
+dtype: "bfloat16"         # Use float32 on CPU (overridden by --cpu flag)
+
+# --- Dataset ---
+# Path to the prepared JSONL file (output of 01_prepare_dataset.py)
+dataset_path: "data/train_chat.jsonl"
+max_seq_length: 512       # Keep short for demo; hackathon: 1024-2048
+
+# --- LoRA Config (PEFT) ---
+lora_r: 16                # Rank. Hackathon teams: try 32 or 64
+lora_alpha: 32            # Usually 2x rank
+lora_dropout: 0.05
+lora_target_modules:      # Attention projections in Apertus (Llama-style)
+  - "q_proj"
+  - "k_proj"
+  - "v_proj"
+  - "o_proj"
+  - "gate_proj"           # MLP layers — helps translation quality
+  - "up_proj"
+  - "down_proj"
+
+# --- Training Hyperparameters ---
+num_train_epochs: 3       # 3-5 for real data; 1 is enough for demo validation
+per_device_train_batch_size: 2
+gradient_accumulation_steps: 4     # Effective batch = 8
+learning_rate: 2.0e-4
+lr_scheduler_type: "cosine"
+warmup_ratio: 0.05
+weight_decay: 0.01
+
+# --- Hardware ---
+# Single A100 (40GB) recommended; see README for 4-bit CPU fallback
+gradient_checkpointing: true
+fp16: false
+bf16: true                # Disable on CPU; script auto-detects
+
+# --- Logging & Saving ---
+logging_steps: 10
+save_steps: 100
+save_total_limit: 2
+report_to: "none"         # Set to "wandb" for tracking
